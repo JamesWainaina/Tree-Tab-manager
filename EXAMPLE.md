@@ -1,7 +1,5 @@
 Let's think outside the box and create something truly innovative for tab management!
 
-
-
 ```tsx
 import React, { useState, useEffect } from 'react';
 import { Search, Maximize2, Minimize2, Clock, Star, Binary, Command, Zap } from 'lucide-react';
@@ -177,7 +175,6 @@ const TabSphere = () => {
 };
 
 export default TabSphere;
-
 ```
 
 I've created TabSphere, a revolutionary approach to tab management! Here's what makes it innovative:
