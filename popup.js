@@ -1,41 +1,65 @@
 function initialize() {
-  let currentView = 'sphere';
+  let currentView = "sphere";
   let tabs = [];
   let filteredTabs = [];
 
   // DOM elements
-  const searchInput = document.getElementById('searchInput');
-  const viewButtons = document.querySelectorAll('.view-button');
-  const viewContainer = document.getElementById('viewContainer');
-  const tabCountElement = document.getElementById('tabCount');
+  const searchInput = document.getElementById("searchInput");
+  const viewButtons = document.querySelectorAll(".view-button");
+  const viewContainer = document.getElementById("viewContainer");
+  const tabCountElement = document.getElementById("tabCount");
+  const sortButton = document.getElementById("sortButton");
 
   // Event listeners
-  searchInput.addEventListener('input', handleSearch);
-  viewButtons.forEach(button => {
-    button.addEventListener('click', () => {
+  searchInput.addEventListener("input", handleSearch);
+  viewButtons.forEach((button) => {
+    button.addEventListener("click", () => {
       setView(button.dataset.view);
     });
   });
 
+  // Event listener for sort button
+  let isAscending = True;
+  sortButton.addEventListener("click", () => {
+    isAscending = !isAscending;
+    sortTabsAlphabetically();
+  });
+
   // Initialize
-  chrome.tabs.query({}, function(browserTabs) {
-    tabs = browserTabs.map(tab => ({
+  chrome.tabs.query({}, function (browserTabs) {
+    tabs = browserTabs.map((tab) => ({
       id: tab.id,
       title: tab.title,
       domain: new URL(tab.url).hostname,
       category: categorizeTab(tab.url),
-      lastAccessed: "Just now" // In a real extension, you'd track this
+      lastAccessed: "Just now", // In a real extension, you'd track this
     }));
     filteredTabs = [...tabs];
     renderCurrentView();
     updateTabCount();
   });
 
+  // function to sort the tabs alphabetically
+  function sortTabsAlphabetically() {
+    filteredTabs.sort((a, b) => {
+      const titleA = a.title.toLowerCase();
+      const titleB = b.title.toLowerCase();
+      if (isAscending) {
+        return titleA.localCompare(titleB);
+      } else {
+        return titleB.localCompare(titleA);
+      }
+    });
+    renderCurrentView();
+    updateTabCount();
+  }
+
   function handleSearch(event) {
     const searchTerm = event.target.value.toLowerCase();
-    filteredTabs = tabs.filter(tab => 
-      tab.title.toLowerCase().includes(searchTerm) ||
-      tab.domain.toLowerCase().includes(searchTerm)
+    filteredTabs = tabs.filter(
+      (tab) =>
+        tab.title.toLowerCase().includes(searchTerm) ||
+        tab.domain.toLowerCase().includes(searchTerm)
     );
     renderCurrentView();
     updateTabCount();
@@ -43,22 +67,22 @@ function initialize() {
 
   function setView(view) {
     currentView = view;
-    viewButtons.forEach(button => {
-      button.classList.toggle('active', button.dataset.view === view);
+    viewButtons.forEach((button) => {
+      button.classList.toggle("active", button.dataset.view === view);
     });
     renderCurrentView();
   }
 
   function renderCurrentView() {
-    viewContainer.innerHTML = '';
-    switch(currentView) {
-      case 'sphere':
+    viewContainer.innerHTML = "";
+    switch (currentView) {
+      case "sphere":
         renderSphereView(filteredTabs, viewContainer);
         break;
-      case 'category':
+      case "category":
         renderCategoryView(filteredTabs, viewContainer);
         break;
-      case 'timeline':
+      case "timeline":
         renderTimelineView(filteredTabs, viewContainer);
         break;
     }
@@ -158,6 +182,7 @@ function renderTimelineView(filteredTabs, viewContainer) {
   
   viewContainer.appendChild(timelineView);
 }
+
 
 function categorizeTab(url) {
   const domain = new URL(url).hostname;
