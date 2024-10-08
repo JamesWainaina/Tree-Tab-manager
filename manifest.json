@@ -1,0 +1,10 @@
+{
+  "manifest_version": 2,
+  "name": "TabSphere",
+  "version": "1.0",
+  "description": "Innovative 3D tab management",
+  "permissions": ["tabs"],
+  "browser_action": {
+    "default_popup": "popup.html"
+  }
+}
