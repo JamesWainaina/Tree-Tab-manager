@@ -2,12 +2,19 @@ function initialize() {
   let currentView = 'sphere';
   let tabs = [];
   let filteredTabs = [];
+  let sortOrder = 'alphabetical'; // New sorting state
 
   // DOM elements
   const searchInput = document.getElementById('searchInput');
   const viewButtons = document.querySelectorAll('.view-button');
   const viewContainer = document.getElementById('viewContainer');
   const tabCountElement = document.getElementById('tabCount');
+  
+  // Add sort button to the UI
+  const sortButton = document.createElement('button');
+  sortButton.textContent = 'Sort A-Z';
+  sortButton.className = 'sort-button';
+  document.querySelector('.search-container').appendChild(sortButton);
 
   // Event listeners
   searchInput.addEventListener('input', handleSearch);
@@ -16,20 +23,34 @@ function initialize() {
       setView(button.dataset.view);
     });
   });
+  sortButton.addEventListener('click', toggleSort);
 
   // Initialize
   chrome.tabs.query({}, function(browserTabs) {
     tabs = browserTabs.map(tab => ({
       id: tab.id,
-      title: tab.title,
-      domain: new URL(tab.url).hostname,
+      title: tab.title || '',
+      url: tab.url,
+      domain: extractDomain(tab.url),
       category: categorizeTab(tab.url),
-      lastAccessed: "Just now" // In a real extension, you'd track this
+      lastAccessed: "Just now"
     }));
+    
+    // Initially sort tabs alphabetically
+    sortTabs();
     filteredTabs = [...tabs];
     renderCurrentView();
     updateTabCount();
   });
+
+  function extractDomain(url) {
+    try {
+      return new URL(url).hostname;
+    } catch (e) {
+      console.error('Invalid URL:', url);
+      return 'unknown-domain';
+    }
+  }
 
   function handleSearch(event) {
     const searchTerm = event.target.value.toLowerCase();
@@ -39,6 +60,21 @@ function initialize() {
     );
     renderCurrentView();
     updateTabCount();
+  }
+
+  function toggleSort() {
+    sortOrder = sortOrder === 'alphabetical' ? 'reverse' : 'alphabetical';
+    sortButton.textContent = sortOrder === 'alphabetical' ? 'Sort A-Z' : 'Sort Z-A';
+    sortTabs();
+    renderCurrentView();
+  }
+
+  function sortTabs() {
+    tabs.sort((a, b) => {
+      const comparison = a.title.toLowerCase().localeCompare(b.title.toLowerCase());
+      return sortOrder === 'alphabetical' ? comparison : -comparison;
+    });
+    filteredTabs = [...tabs];
   }
 
   function setView(view) {
@@ -65,9 +101,11 @@ function initialize() {
   }
 
   function updateTabCount() {
-    tabCountElement.textContent = `${filteredTabs.length} tabs • Last sync: Just now`;
+    tabCountElement.textContent = `${filteredTabs.length} tabs • Sorted ${sortOrder} • Last sync: Just now`;
   }
 }
+
+// Modified render functions to respect alphabetical order
 
 function renderSphereView(filteredTabs, viewContainer) {
   const sphereDiv = document.createElement('div');
@@ -87,7 +125,14 @@ function renderSphereView(filteredTabs, viewContainer) {
     tabNode.style.left = `${x}px`;
     tabNode.style.top = `${y}px`;
     tabNode.style.transform = 'translate(-50%, -50%)';
-    tabNode.textContent = tab.domain;
+    
+    // Show both domain and truncated title
+    const truncatedTitle = tab.title.length > 20 ? tab.title.substring(0, 17) + '...' : tab.title;
+    tabNode.innerHTML = `
+      <div class="domain">${tab.domain}</div>
+      <div class="title">${truncatedTitle}</div>
+    `;
+    
     tabNode.addEventListener('click', () => {
       chrome.tabs.update(tab.id, {active: true});
     });
@@ -100,19 +145,21 @@ function renderSphereView(filteredTabs, viewContainer) {
 }
 
 function renderCategoryView(filteredTabs, viewContainer) {
-  const categories = ['productivity', 'development', 'entertainment', 'social'];
+  const categories = ['productivity', 'development', 'entertainment', 'social', 'news', 'shopping', 'finance', 'health', 'education', 'other'];
   const categoryView = document.createElement('div');
   categoryView.className = 'category-view';
   
   categories.forEach(category => {
+    const categoryTabs = filteredTabs.filter(tab => tab.category === category);
+    if (categoryTabs.length === 0) return; // Skip empty categories
+    
     const categoryCard = document.createElement('div');
     categoryCard.className = 'category-card';
     
     const categoryTitle = document.createElement('h3');
-    categoryTitle.textContent = category.charAt(0).toUpperCase() + category.slice(1);
+    categoryTitle.textContent = `${category.charAt(0).toUpperCase() + category.slice(1)} (${categoryTabs.length})`;
     categoryCard.appendChild(categoryTitle);
     
-    const categoryTabs = filteredTabs.filter(tab => tab.category === category);
     categoryTabs.forEach(tab => {
       const tabDiv = document.createElement('div');
       tabDiv.className = 'tab-title';
@@ -161,10 +208,34 @@ function renderTimelineView(filteredTabs, viewContainer) {
 
 function categorizeTab(url) {
   const domain = new URL(url).hostname;
-  if (domain.includes('gmail.com') || domain.includes('docs.google.com')) return 'productivity';
-  if (domain.includes('github.com') || domain.includes('stackoverflow.com')) return 'development';
-  if (domain.includes('youtube.com')) return 'entertainment';
-  if (domain.includes('twitter.com')) return 'social';
+  const categoryMap = {
+    'gmail.com': 'productivity',
+    'docs.google.com': 'productivity',
+    'github.com': 'development',
+    'stackoverflow.com': 'development',
+    'youtube.com': 'entertainment',
+    'twitter.com': 'social',
+    'cnn.com': 'news',
+    'bbc.com': 'news',
+    'amazon.com': 'shopping',
+    'ebay.com': 'shopping',
+    'bankofamerica.com': 'finance',
+    'chase.com': 'finance',
+    'webmd.com': 'health',
+    'mayoclinic.org': 'health',
+    'coursera.org': 'education',
+    'edx.org': 'education',
+    'linkedin.com': 'social',
+    'facebook.com': 'social',
+    'netflix.com': 'entertainment',
+    'hulu.com': 'entertainment'
+  };
+
+  for (const [key, value] of Object.entries(categoryMap)) {
+    if (domain.includes(key)) {
+      return value;
+    }
+  }
   return 'other';
 }
 
