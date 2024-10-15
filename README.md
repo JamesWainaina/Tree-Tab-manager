@@ -12,7 +12,7 @@ TabSphere is a Chrome extension designed to enhance your browsing experience by 
 
 ## Screenshots
 
-![TabSphere Screenshot](path/to/screenshot.png)
+![TabSphere Screenshot](/Treetab.png)
 
 *Include relevant screenshots to showcase the UI and features.*
 
