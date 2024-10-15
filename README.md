@@ -21,7 +21,7 @@
   - **Category View:** Organize and group tabs by categories.
   - **Timeline View:** See tabs arranged by when they were last accessed.
 
-## Screenshots
+## Screenshot
 
 ![TabSphere Screenshot](/Treetab.png)
 
