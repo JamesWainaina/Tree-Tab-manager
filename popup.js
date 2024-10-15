@@ -1,100 +1,104 @@
 function initialize() {
-  let currentView = 'sphere';
+  let currentView = "sphere";
   let tabs = [];
   let filteredTabs = [];
-  let sortOrder = 'alphabetical'; // New sorting state
+  let sortOrder = "alphabetical"; // New sorting state
 
   // DOM elements
-  const searchInput = document.getElementById('searchInput');
-  const viewButtons = document.querySelectorAll('.view-button');
-  const viewContainer = document.getElementById('viewContainer');
-  const tabCountElement = document.getElementById('tabCount');
-  
+  const searchInput = document.getElementById("searchInput");
+  const viewButtons = document.querySelectorAll(".view-button");
+  const viewContainer = document.getElementById("viewContainer");
+  const tabCountElement = document.getElementById("tabCount");
+
   // Add sort button to the UI
-  const sortButton = document.createElement('button');
-  sortButton.textContent = 'Sort A-Z';
-  sortButton.className = 'sort-button';
-  document.querySelector('.search-container').appendChild(sortButton);
+  const sortButton = document.createElement("button");
+  sortButton.textContent = "Sort A-Z";
+  sortButton.className = "sort-button";
+  document.querySelector(".search-container").appendChild(sortButton);
 
   // Event listeners
-  searchInput.addEventListener('input', handleSearch);
-  viewButtons.forEach(button => {
-    button.addEventListener('click', () => {
+  searchInput.addEventListener("input", handleSearch);
+  viewButtons.forEach((button) => {
+    button.addEventListener("click", () => {
       setView(button.dataset.view);
     });
   });
-  sortButton.addEventListener('click', toggleSort);
+  sortButton.addEventListener("click", toggleSort);
 
   // Initialize
-  chrome.tabs.query({}, function(browserTabs) {
-    tabs = browserTabs.map(tab => ({
-        id: tab.id,
-        title: tab.title || '',
-        url: tab.url,
-        domain: extractDomain(tab.url),
-        category: categorizeTab(tab.url),
-        lastAccessed: "Just Now" 
+  chrome.tabs.query({}, function (browserTabs) {
+    tabs = browserTabs.map((tab) => ({
+      id: tab.id,
+      title: tab.title || "",
+      url: tab.url,
+      domain: extractDomain(tab.url),
+      category: categorizeTab(tab.url),
+      lastAccessed: "Just Now",
     }));
-    
+
     // Initially sort tabs alphabetically
     sortTabs();
     filteredTabs = [...tabs];
     renderCurrentView();
     updateTabCount();
-});
+  });
 
   function extractDomain(url) {
     try {
       return new URL(url).hostname;
     } catch (e) {
-      console.error('Invalid URL:', url);
-      return 'unknown-domain';
+      console.error("Invalid URL:", url);
+      return "unknown-domain";
     }
   }
 
   function handleSearch(event) {
     const searchTerm = event.target.value.toLowerCase();
-    filteredTabs = tabs.filter(tab => 
-      tab.title.toLowerCase().includes(searchTerm) ||
-      tab.domain.toLowerCase().includes(searchTerm)
+    filteredTabs = tabs.filter(
+      (tab) =>
+        tab.title.toLowerCase().includes(searchTerm) ||
+        tab.domain.toLowerCase().includes(searchTerm)
     );
     renderCurrentView();
     updateTabCount();
   }
 
   function toggleSort() {
-    sortOrder = sortOrder === 'alphabetical' ? 'reverse' : 'alphabetical';
-    sortButton.textContent = sortOrder === 'alphabetical' ? 'Sort A-Z' : 'Sort Z-A';
+    sortOrder = sortOrder === "alphabetical" ? "reverse" : "alphabetical";
+    sortButton.textContent =
+      sortOrder === "alphabetical" ? "Sort A-Z" : "Sort Z-A";
     sortTabs();
     renderCurrentView();
   }
 
   function sortTabs() {
     tabs.sort((a, b) => {
-      const comparison = a.title.toLowerCase().localeCompare(b.title.toLowerCase());
-      return sortOrder === 'alphabetical' ? comparison : -comparison;
+      const comparison = a.title
+        .toLowerCase()
+        .localeCompare(b.title.toLowerCase());
+      return sortOrder === "alphabetical" ? comparison : -comparison;
     });
     filteredTabs = [...tabs];
   }
 
   function setView(view) {
     currentView = view;
-    viewButtons.forEach(button => {
-      button.classList.toggle('active', button.dataset.view === view);
+    viewButtons.forEach((button) => {
+      button.classList.toggle("active", button.dataset.view === view);
     });
     renderCurrentView();
   }
 
   function renderCurrentView() {
-    viewContainer.innerHTML = '';
-    switch(currentView) {
-      case 'sphere':
+    viewContainer.innerHTML = "";
+    switch (currentView) {
+      case "sphere":
         renderSphereView(filteredTabs, viewContainer);
         break;
-      case 'category':
+      case "category":
         renderCategoryView(filteredTabs, viewContainer);
         break;
-      case 'timeline':
+      case "timeline":
         renderTimelineView(filteredTabs, viewContainer);
         break;
     }
@@ -103,189 +107,206 @@ function initialize() {
   function updateTabCount() {
     tabCountElement.textContent = `${filteredTabs.length} tabs • Sorted ${sortOrder} • Last sync: Just now`;
   }
-}
 
-// Modified render functions to respect alphabetical order
+  // New removeTab function to remove tabs
+  function removeTab(tabId) {
+    chrome.tabs.remove(tabId, () => {
+      // Update the tabs array and filteredTabs array
+      tabs = tabs.filter((tab) => tab.id !== tabId);
+      filteredTabs = filteredTabs.filter((tab) => tab.id !== tabId);
 
-function renderSphereView(filteredTabs, viewContainer) {
-  const sphereDiv = document.createElement('div');
-  sphereDiv.className = 'sphere-view';
-  
-  const container = document.createElement('div');
-  container.className = 'sphere-container';
-  
-  filteredTabs.forEach((tab, index) => {
-    const angle = (index / filteredTabs.length) * Math.PI * 2;
-    const radius = 120;
-    const x = Math.cos(angle) * radius + 160;
-    const y = Math.sin(angle) * radius + 160;
-    
-    const tabNode = document.createElement('div');
-    tabNode.className = 'tab-node';
-    tabNode.style.left = `${x}px`;
-    tabNode.style.top = `${y}px`;
-    tabNode.style.transform = 'translate(-50%, -50%)';
-    
-    // Show both domain and truncated title
-    const truncatedTitle = tab.title.length > 20 ? tab.title.substring(0, 17) + '...' : tab.title;
-    tabNode.innerHTML = `
-      <div class="domain">${tab.domain}</div>
-      <div class="title">${truncatedTitle}</div>
-    `;
-    
-    tabNode.addEventListener('click', () => {
-      chrome.tabs.update(tab.id, {active: true});
+      // Re-render the current view and update the tab count
+      renderCurrentView();
+      updateTabCount();
     });
-    
-    container.appendChild(tabNode);
-  });
-  
-  sphereDiv.appendChild(container);
-  viewContainer.appendChild(sphereDiv);
-}
+  }
 
+  // Modified render functions to respect alphabetical order and include remove button
 
-function renderCategoryView(filteredTabs, viewContainer) {
-  const categories = ['productivity', 'development', 'entertainment', 'social', 'news', 'shopping', 'finance', 'health', 'education', 'other'];
-  const categoryView = document.createElement('div');
-  categoryView.className = 'category-view';
-  
-  categories.forEach(category => {
-    const categoryTabs = filteredTabs.filter(tab => tab.category === category);
-    if (categoryTabs.length === 0) return; // Skip empty categories
-    
-    const categoryCard = document.createElement('div');
-    categoryCard.className = 'category-card';
-    
-    // Create a clickable category title
-    const categoryTitle = document.createElement('h3');
-    categoryTitle.textContent = `${category.charAt(0).toUpperCase() + category.slice(1)} (${categoryTabs.length})`;
-    categoryTitle.style.cursor = 'pointer'; // Indicate it's clickable
-    
-    // Add a click event to the category title
-    categoryTitle.addEventListener('click', () => {
-      const dropdown = categoryCard.querySelector('.dropdown');
-      dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block'; // Toggle dropdown visibility
-    });
+  function renderSphereView(filteredTabs, viewContainer) {
+    const sphereDiv = document.createElement("div");
+    sphereDiv.className = "sphere-view";
 
-    // Dropdown container
-    const dropdown = document.createElement('div');
-    dropdown.className = 'dropdown';
-    dropdown.style.display = 'none'; // Initially hide the dropdown
+    const container = document.createElement("div");
+    container.className = "sphere-container";
 
-    categoryCard.appendChild(categoryTitle);
-    categoryCard.appendChild(dropdown); // Append dropdown to category card
+    filteredTabs.forEach((tab, index) => {
+      const angle = (index / filteredTabs.length) * Math.PI * 2;
+      const radius = 120;
+      const x = Math.cos(angle) * radius + 160;
+      const y = Math.sin(angle) * radius + 160;
 
-    categoryTabs.forEach(tab => {
-      const tabDiv = document.createElement('div');
-      tabDiv.className = 'tab-title';
+      const tabNode = document.createElement("div");
+      tabNode.className = "tab-node";
+      tabNode.style.left = `${x}px`;
+      tabNode.style.top = `${y}px`;
+      tabNode.style.transform = "translate(-50%, -50%)";
 
-      // Create content to display title and URL with border
-      tabDiv.innerHTML = `
-        <span class="tab-title-text">${tab.title}</span>
-        <span class="tab-url-text">${tab.url}</span>
+      const truncatedTitle =
+        tab.title.length > 20 ? tab.title.substring(0, 17) + "..." : tab.title;
+      tabNode.innerHTML = `
+        <div class="domain">${tab.domain}</div>
+        <div class="title">${truncatedTitle}</div>
+        <button class="remove-tab-button">X</button>  <!-- Add remove button -->
       `;
 
-      // Apply border and font size
-      tabDiv.style.border = '1px solid var(--border-color)'; // Add border
-      tabDiv.style.padding = '4px'; // Optional: Add some padding
-      tabDiv.style.margin = '4px 0'; // Optional: Add some margin
-      tabDiv.querySelector('.tab-url-text').style.fontSize = '11px'; // Set font size
-
-      // Toggle the display of the URL on hover
-      tabDiv.addEventListener('mouseover', () => {
-        tabDiv.querySelector('.tab-url-text').style.display = 'inline'; // Show URL on hover
-      });
-
-      tabDiv.addEventListener('mouseout', () => {
-        tabDiv.querySelector('.tab-url-text').style.display = 'none'; // Hide URL when not hovering
-      });
-
-      tabDiv.addEventListener('click', () => {
+      // Activate tab when clicking on the tab node
+      tabNode.querySelector(".domain, .title").addEventListener("click", () => {
         chrome.tabs.update(tab.id, { active: true });
       });
-      dropdown.appendChild(tabDiv);
+
+      // Handle tab removal
+      tabNode
+        .querySelector(".remove-tab-button")
+        .addEventListener("click", (event) => {
+          event.stopPropagation(); // Prevent triggering tab activation
+          removeTab(tab.id); // Call the remove function
+        });
+
+      container.appendChild(tabNode);
     });
 
-    // Add hover effect to display dropdown
-    categoryCard.addEventListener('mouseover', () => {
-      dropdown.style.display = 'block'; // Show dropdown on hover
+    sphereDiv.appendChild(container);
+    viewContainer.appendChild(sphereDiv);
+  }
+
+  function renderCategoryView(filteredTabs, viewContainer) {
+    const categories = [
+      "productivity",
+      "development",
+      "entertainment",
+      "social",
+      "news",
+      "shopping",
+      "finance",
+      "health",
+      "education",
+      "other",
+    ];
+    const categoryView = document.createElement("div");
+    categoryView.className = "category-view";
+
+    categories.forEach((category) => {
+      const categoryTabs = filteredTabs.filter(
+        (tab) => tab.category === category
+      );
+      if (categoryTabs.length === 0) return; // Skip empty categories
+
+      const categoryCard = document.createElement("div");
+      categoryCard.className = "category-card";
+
+      const categoryTitle = document.createElement("h3");
+      categoryTitle.textContent = `${
+        category.charAt(0).toUpperCase() + category.slice(1)
+      } (${categoryTabs.length})`;
+      categoryTitle.style.cursor = "pointer"; // Indicate it's clickable
+
+      categoryTitle.addEventListener("click", () => {
+        const dropdown = categoryCard.querySelector(".dropdown");
+        dropdown.style.display =
+          dropdown.style.display === "block" ? "none" : "block"; // Toggle dropdown visibility
+      });
+
+      const dropdown = document.createElement("div");
+      dropdown.className = "dropdown";
+      dropdown.style.display = "none"; // Initially hide the dropdown
+
+      categoryCard.appendChild(categoryTitle);
+      categoryCard.appendChild(dropdown); // Append dropdown to category card
+
+      categoryTabs.forEach((tab) => {
+        const tabDiv = document.createElement("div");
+        tabDiv.className = "tab-title";
+        tabDiv.innerHTML = `
+          <span class="tab-title-text">${tab.title}</span>
+          <span class="tab-url-text">${tab.url}</span>
+          <button class="remove-tab-button">X</button>  <!-- Add remove button -->
+        `;
+
+        tabDiv.querySelector(".tab-url-text").style.fontSize = "11px";
+
+        tabDiv.addEventListener("mouseover", () => {
+          tabDiv.querySelector(".tab-url-text").style.display = "inline"; // Show URL on hover
+        });
+
+        tabDiv.addEventListener("mouseout", () => {
+          tabDiv.querySelector(".tab-url-text").style.display = "none"; // Hide URL when not hovering
+        });
+
+        tabDiv
+          .querySelector(".remove-tab-button")
+          .addEventListener("click", (event) => {
+            event.stopPropagation(); // Prevent triggering tab activation
+            removeTab(tab.id); // Call the remove function
+          });
+
+        dropdown.appendChild(tabDiv);
+      });
+
+      categoryView.appendChild(categoryCard);
     });
 
-    categoryCard.addEventListener('mouseout', () => {
-      dropdown.style.display = 'none'; // Hide dropdown when not hovering
-    });
-    
-    categoryView.appendChild(categoryCard);
-  });
-  
-  viewContainer.appendChild(categoryView);
-}
+    viewContainer.appendChild(categoryView);
+  }
 
+  function renderTimelineView(filteredTabs, viewContainer) {
+    const timeframes = ["Just Now", "Last Hour", "Today", "Yesterday"];
+    const timelineView = document.createElement("div");
+    timelineView.className = "timeline-view";
 
-function renderTimelineView(filteredTabs, viewContainer) {
-  const timeframes = ['Just Now', 'Last Hour', 'Today', 'Yesterday'];
-  const timelineView = document.createElement('div');
-  timelineView.className = 'timeline-view';
-  
-  timeframes.forEach(timeframe => {
-      const timeGroup = document.createElement('div');
-      timeGroup.className = 'time-group';
-      
-      const timeTitle = document.createElement('h3');
+    timeframes.forEach((timeframe) => {
+      const timeGroup = document.createElement("div");
+      timeGroup.className = "time-group";
+
+      const timeTitle = document.createElement("h3");
       timeTitle.textContent = timeframe;
       timeGroup.appendChild(timeTitle);
-      
-      const timeframeTabs = filteredTabs.filter(tab => tab.lastAccessed === timeframe);
-      timeframeTabs.forEach(tab => {
-          const tabCard = document.createElement('div');
-          tabCard.className = 'tab-card';
-          tabCard.textContent = tab.title;
-          tabCard.addEventListener('click', () => {
-              chrome.tabs.update(tab.id, {active: true});
+
+      const timeframeTabs = filteredTabs.filter(
+        (tab) => tab.lastAccessed === timeframe
+      );
+      timeframeTabs.forEach((tab) => {
+        const tabCard = document.createElement("div");
+        tabCard.className = "tab-card";
+        tabCard.innerHTML = `
+              ${tab.title}
+              <button class="remove-tab-button">X</button> <!-- Add remove button -->
+            `;
+
+        tabCard
+          .querySelector(".remove-tab-button")
+          .addEventListener("click", (event) => {
+            event.stopPropagation(); // Prevent triggering tab activation
+            removeTab(tab.id); // Call the remove function
           });
-          timeGroup.appendChild(tabCard);
+
+        tabCard.addEventListener("click", () => {
+          chrome.tabs.update(tab.id, { active: true });
+        });
+
+        timeGroup.appendChild(tabCard);
       });
-      
+
       timelineView.appendChild(timeGroup);
-  });
-  
-  viewContainer.appendChild(timelineView);
-}
+    });
 
+    viewContainer.appendChild(timelineView);
+  }
 
-function categorizeTab(url) {
-  const domain = new URL(url).hostname;
-  const categoryMap = {
-    'gmail.com': 'productivity',
-    'docs.google.com': 'productivity',
-    'github.com': 'development',
-    'stackoverflow.com': 'development',
-    'youtube.com': 'entertainment',
-    'twitter.com': 'social',
-    'cnn.com': 'news',
-    'bbc.com': 'news',
-    'amazon.com': 'shopping',
-    'ebay.com': 'shopping',
-    'bankofamerica.com': 'finance',
-    'chase.com': 'finance',
-    'webmd.com': 'health',
-    'mayoclinic.org': 'health',
-    'coursera.org': 'education',
-    'edx.org': 'education',
-    'linkedin.com': 'social',
-    'facebook.com': 'social',
-    'netflix.com': 'entertainment',
-    'hulu.com': 'entertainment'
-  };
-
-  for (const [key, value] of Object.entries(categoryMap)) {
-    if (domain.includes(key)) {
-      return value;
+  function categorizeTab(url) {
+    if (url.includes("youtube.com") || url.includes("netflix.com")) {
+      return "entertainment";
+    } else if (
+      url.includes("github.com") ||
+      url.includes("stackOverflow.com")
+    ) {
+      return "development";
+    } else if (url.includes("linkedin.com")) {
+      return "social";
+    } else {
+      return "other";
     }
   }
-  return 'other';
 }
 
-// Call the initialize function to set up the extension
-initialize();
+document.addEventListener("DOMContentLoaded", initialize);
