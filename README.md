@@ -36,3 +36,8 @@ To install the **TabSphere** Chrome extension, follow these steps:
 
    ```bash
    git clone https://github.com/yourusername/TabSphere.git
+
+## Installation
+2. **Load the extension using the package.json with your choice of browser:**
+
+3. **Test the functionality described above about the capabilities of the extension:**
