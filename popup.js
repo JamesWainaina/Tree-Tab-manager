@@ -28,12 +28,12 @@ function initialize() {
   // Initialize
   chrome.tabs.query({}, function(browserTabs) {
     tabs = browserTabs.map(tab => ({
-      id: tab.id,
-      title: tab.title || '',
-      url: tab.url,
-      domain: extractDomain(tab.url),
-      category: categorizeTab(tab.url),
-      lastAccessed: "Just now"
+        id: tab.id,
+        title: tab.title || '',
+        url: tab.url,
+        domain: extractDomain(tab.url),
+        category: categorizeTab(tab.url),
+        lastAccessed: "Just Now" 
     }));
     
     // Initially sort tabs alphabetically
@@ -41,7 +41,7 @@ function initialize() {
     filteredTabs = [...tabs];
     renderCurrentView();
     updateTabCount();
-  });
+});
 
   function extractDomain(url) {
     try {
@@ -144,6 +144,7 @@ function renderSphereView(filteredTabs, viewContainer) {
   viewContainer.appendChild(sphereDiv);
 }
 
+
 function renderCategoryView(filteredTabs, viewContainer) {
   const categories = ['productivity', 'development', 'entertainment', 'social', 'news', 'shopping', 'finance', 'health', 'education', 'other'];
   const categoryView = document.createElement('div');
@@ -156,18 +157,63 @@ function renderCategoryView(filteredTabs, viewContainer) {
     const categoryCard = document.createElement('div');
     categoryCard.className = 'category-card';
     
+    // Create a clickable category title
     const categoryTitle = document.createElement('h3');
     categoryTitle.textContent = `${category.charAt(0).toUpperCase() + category.slice(1)} (${categoryTabs.length})`;
-    categoryCard.appendChild(categoryTitle);
+    categoryTitle.style.cursor = 'pointer'; // Indicate it's clickable
     
+    // Add a click event to the category title
+    categoryTitle.addEventListener('click', () => {
+      const dropdown = categoryCard.querySelector('.dropdown');
+      dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block'; // Toggle dropdown visibility
+    });
+
+    // Dropdown container
+    const dropdown = document.createElement('div');
+    dropdown.className = 'dropdown';
+    dropdown.style.display = 'none'; // Initially hide the dropdown
+
+    categoryCard.appendChild(categoryTitle);
+    categoryCard.appendChild(dropdown); // Append dropdown to category card
+
     categoryTabs.forEach(tab => {
       const tabDiv = document.createElement('div');
       tabDiv.className = 'tab-title';
-      tabDiv.textContent = tab.title;
-      tabDiv.addEventListener('click', () => {
-        chrome.tabs.update(tab.id, {active: true});
+
+      // Create content to display title and URL with border
+      tabDiv.innerHTML = `
+        <span class="tab-title-text">${tab.title}</span>
+        <span class="tab-url-text">${tab.url}</span>
+      `;
+
+      // Apply border and font size
+      tabDiv.style.border = '1px solid var(--border-color)'; // Add border
+      tabDiv.style.padding = '4px'; // Optional: Add some padding
+      tabDiv.style.margin = '4px 0'; // Optional: Add some margin
+      tabDiv.querySelector('.tab-url-text').style.fontSize = '11px'; // Set font size
+
+      // Toggle the display of the URL on hover
+      tabDiv.addEventListener('mouseover', () => {
+        tabDiv.querySelector('.tab-url-text').style.display = 'inline'; // Show URL on hover
       });
-      categoryCard.appendChild(tabDiv);
+
+      tabDiv.addEventListener('mouseout', () => {
+        tabDiv.querySelector('.tab-url-text').style.display = 'none'; // Hide URL when not hovering
+      });
+
+      tabDiv.addEventListener('click', () => {
+        chrome.tabs.update(tab.id, { active: true });
+      });
+      dropdown.appendChild(tabDiv);
+    });
+
+    // Add hover effect to display dropdown
+    categoryCard.addEventListener('mouseover', () => {
+      dropdown.style.display = 'block'; // Show dropdown on hover
+    });
+
+    categoryCard.addEventListener('mouseout', () => {
+      dropdown.style.display = 'none'; // Hide dropdown when not hovering
     });
     
     categoryView.appendChild(categoryCard);
@@ -176,35 +222,37 @@ function renderCategoryView(filteredTabs, viewContainer) {
   viewContainer.appendChild(categoryView);
 }
 
+
 function renderTimelineView(filteredTabs, viewContainer) {
   const timeframes = ['Just Now', 'Last Hour', 'Today', 'Yesterday'];
   const timelineView = document.createElement('div');
   timelineView.className = 'timeline-view';
   
   timeframes.forEach(timeframe => {
-    const timeGroup = document.createElement('div');
-    timeGroup.className = 'time-group';
-    
-    const timeTitle = document.createElement('h3');
-    timeTitle.textContent = timeframe;
-    timeGroup.appendChild(timeTitle);
-    
-    const timeframeTabs = filteredTabs.filter(tab => tab.lastAccessed === timeframe.toLowerCase());
-    timeframeTabs.forEach(tab => {
-      const tabCard = document.createElement('div');
-      tabCard.className = 'tab-card';
-      tabCard.textContent = tab.title;
-      tabCard.addEventListener('click', () => {
-        chrome.tabs.update(tab.id, {active: true});
+      const timeGroup = document.createElement('div');
+      timeGroup.className = 'time-group';
+      
+      const timeTitle = document.createElement('h3');
+      timeTitle.textContent = timeframe;
+      timeGroup.appendChild(timeTitle);
+      
+      const timeframeTabs = filteredTabs.filter(tab => tab.lastAccessed === timeframe);
+      timeframeTabs.forEach(tab => {
+          const tabCard = document.createElement('div');
+          tabCard.className = 'tab-card';
+          tabCard.textContent = tab.title;
+          tabCard.addEventListener('click', () => {
+              chrome.tabs.update(tab.id, {active: true});
+          });
+          timeGroup.appendChild(tabCard);
       });
-      timeGroup.appendChild(tabCard);
-    });
-    
-    timelineView.appendChild(timeGroup);
+      
+      timelineView.appendChild(timeGroup);
   });
   
   viewContainer.appendChild(timelineView);
 }
+
 
 function categorizeTab(url) {
   const domain = new URL(url).hostname;
